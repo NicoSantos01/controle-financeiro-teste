@@ -16,7 +16,7 @@
         .container {
             width: 100%;
             max-width: 420px;
-            height: 100dvh;
+            height: calc(var(--vh) * 100);
             margin: auto;
             display: flex;
             flex-direction: column;
@@ -83,6 +83,7 @@
         html,body {
             height: 100%;
             overflow: hidden;
+        }
     </style>
 </head>
 
@@ -308,6 +309,13 @@ if (chatSalvo){
 if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("service-worker.js")
 }
+
+function ajustarAltura(){
+    let vh = windoe.innerHeight * 0.01
+    document.documentElement.style.setProperty('--vh', `${vh}px`)
+}
+ajustarAltura()
+window.addEventListener('resize', ajustarAltura)
 
 </script>
 
