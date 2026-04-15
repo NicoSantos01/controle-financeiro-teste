@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assistente Financeiro</title>
+
+    <link rel="manifest" href="manifest.json">
+
+    <style>
+        body {
+            font-family: Arial;
+            background-color: #e5ddd5;
+            margin: 0;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 420px;
+            height: 100dvh;
+            margin: auto;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+        }
+
+        .topo {
+            background-color: #075E54;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        #chat {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .mensagem {
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 80%;
+            font-size: 14px;
+        }
+
+        .usuario {
+            align-self: flex-end;
+            background-color: #DCF8C6;
+        }
+
+        .sistema {
+            align-self: flex-start;
+            background-color: #fff;
+        }
+
+        .input-area {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #ccc;
+            position: sticky;
+            bottom: 0;
+            background: #fff;
+        }
+
+        .input-area input {
+            flex: 1;
+            padding: 10px;
+            border-radius: 20px;
+            border: 1px solid #ccc;
+            outline: none;
+        }
+
+        button {
+            margin-top: 5px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <div class="topo">Assistente Financeiro</div>
+
+    <div id="chat"></div>
+
+    <div class="input-area">
+        <input type="text" id="comando" placeholder="Digite uma mensagem...">
+    </div>
+</div>
+
+<script>
+
+let saldo = Number(localStorage.getItem("saldo")) || 0
+let totalGanho = Number(localStorage.getItem("totalGanho")) || 0
+let totalGasto = Number(localStorage.getItem("totalGasto")) || 0
+let transacoes = JSON.parse(localStorage.getItem("transacoes")) || []
+
+function adicionarMensagem(texto, tipo){
+    let chat = document.getElementById("chat")
+
+    let msg = document.createElement("div")
+    msg.classList.add("mensagem", tipo)
+
+    let agora = new Date()
+
+    let data = agora.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit'
+    })
+
+    let hora = agora.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit'
+    })
+
+    let dataHora = data + " " + hora
+
+    msg.innerHTML = `
+        <div>${texto}</div>
+        <small style="font-size:10px; opacity:0.6">${dataHora}</small>
+    `
+
+    chat.appendChild(msg)
+    chat.scrollTop = chat.scrollHeight
+
+    localStorage.setItem("chat", chat.innerHTML)
+}
+
+function detectarCategoria(texto){
+    texto = texto.toLowerCase()
+
+    if (texto.includes("mercado")) return "mercado 🛒"
+    if (texto.includes("uber")) return "transporte 🚗"
+    if (texto.includes("lanche") || texto.includes("comida")) return "alimentação 🍔"
+    if (texto.includes("roupa")) return "roupas 👕"
+
+    return texto || "outros"
+}
+
+function interpretarGasto(texto, valor){
+    if (valor <= 0){
+        adicionarMensagem("Não entendi o valor 😅", "sistema")
+        return
+    }
+
+    let descricao = texto.replace(/\d/g, "").trim()
+    let categoria = detectarCategoria(descricao)
+
+    if (saldo >= valor){
+        saldo -= valor
+        totalGasto += valor
+
+        transacoes.push({
+            tipo: "gasto",
+            valor: valor,
+            data: new Date().toISOString().split("T")[0]
+        })
+
+        adicionarMensagem(`Nico, você gastou R$${valor} com ${categoria} 💸`, "sistema")
+    } else {
+        adicionarMensagem("Saldo insuficiente 😢", "sistema")
+    }
+
+    salvar()
+}
+
+function interpretarGanho(texto, valor){
+    if (valor <= 0){
+        adicionarMensagem("Não entendi o valor 😅", "sistema")
+        return
+    }
+
+    let descricao = texto.replace(/\d/g, "").trim()
+
+    saldo += valor
+    totalGanho += valor
+
+    transacoes.push({
+        tipo: "ganho",
+        valor: valor,
+        data: new Date().toISOString().split("T")[0]
+    })
+
+    adicionarMensagem(`Nico, você recebeu R$${valor} de ${descricao} 💰`, "sistema")
+
+    salvar()
+}
+
+function calcularGastoHoje(){
+    let hoje = new Date().toISOString().split("T")[0]
+    let total = 0
+
+    for (let t of transacoes){
+        if (t.tipo === "gasto" && t.data === hoje){
+            total += t.valor
+        }
+    }
+
+    return total
+}
+
+function mostrarGastoHoje(){
+    let total = calcularGastoHoje()
+    adicionarMensagem(`Nico, você gastou R$${total} hoje 💸`, "sistema")
+}
+
+function mostrarSaldo(){
+    adicionarMensagem(`Nico, seu saldo é R$${saldo} 💰`, "sistema")
+}
+
+function mostrarResumo(){
+    adicionarMensagem(`Saldo: R$${saldo} | Ganho: R$${totalGanho} | Gasto: R$${totalGasto}`, "sistema")
+}
+
+function mostrarAjuda(){
+    let chat = document.getElementById("chat")
+
+    let msg = document.createElement("div")
+    msg.classList.add("mensagem", "sistema")
+
+    msg.innerHTML = `
+        <div>Escolha:</div>
+        <button onclick="mostrarSaldo()">Saldo</button>
+        <button onclick="mostrarResumo()">Resumo</button>
+        <button onclick="limparTudo()">Limpar</button>
+    `
+
+    chat.appendChild(msg)
+}
+
+function limparTudo(){
+    saldo = 0
+    totalGanho = 0
+    totalGasto = 0
+    transacoes = []
+
+    document.getElementById("chat").innerHTML = ""
+    localStorage.clear()
+}
+
+function salvar(){
+    localStorage.setItem("saldo", saldo)
+    localStorage.setItem("totalGanho", totalGanho)
+    localStorage.setItem("totalGasto", totalGasto)
+    localStorage.setItem("transacoes", JSON.stringify(transacoes))
+}
+
+document.getElementById("comando").addEventListener("keydown", function(e){
+    if (e.key === "Enter"){
+        executarComando()
+    }
+})
+
+function executarComando(){
+    let input = document.getElementById("comando")
+    let comando = input.value.toLowerCase().trim()
+
+    if (!comando) return
+
+    adicionarMensagem(comando, "usuario")
+
+    let valor = Number(comando.replace(/\D/g, ""))
+
+    if (comando.includes("ganhei") || comando.includes("recebi")){
+        interpretarGanho(comando, valor)
+    }
+    else if (comando === "gastei hoje"){
+        mostrarGastoHoje()
+    }
+    else if (valor > 0){
+        interpretarGasto(comando, valor)
+    }
+    else if (comando === "saldo"){
+        mostrarSaldo()
+    }
+    else if (comando === "resumo"){
+        mostrarResumo()
+    }
+    else if (comando === "ajuda"){
+        mostrarAjuda()
+    }
+    else if (comando === "limpar"){
+        limparTudo()
+    }
+    else {
+        adicionarMensagem("Não entendi 😅", "sistema")
+    }
+
+    input.value = ""
+}
+
+let chatSalvo = localStorage.getItem("chat")
+if (chatSalvo){
+    document.getElementById("chat").innerHTML = chatSalvo
+}
+
+// SERVICE WORKER
+if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("service-worker.js")
+}
+
+</script>
+
+</body>
+</html>
